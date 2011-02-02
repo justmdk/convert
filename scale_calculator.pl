@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 # Scale calculator
-# varsion 0.1 alpha 2
+# varsion 0.1 alpha 3
 
 use strict;
 use warnings;
@@ -12,10 +12,10 @@ use Getopt::Std;
 my %options;
 getopt 'or', \%options;
 
-pod2usage() unless (exists $options{'o'} && $options{'o'}) && $options{'o'} =~ /\d{2,5}:\d{2,5}/;
+pod2usage() unless (exists $options{'o'} && $options{'o'}) && $options{'o'} =~ /\d{2,5}[:x]\d{2,5}/;
 
-my ($w0, $h0) = exists $options{'r'} && $options{'r'} ? split /:/, $options{'r'} : (480, 272);
-my ($w1, $h1) = split /:/, $options{'o'};
+my ($w0, $h0) = exists $options{'r'} && $options{'r'} ? split /[:x]/, $options{'r'} : (480, 272);
+my ($w1, $h1) = split /[:x]/, $options{'o'};
 
 pod2usage("Wrong values combination, sorry.") if $w0 > $w1 && $h0 > $h1; 
 
@@ -26,22 +26,26 @@ pod2usage("Wrong values combination, sorry.") if $w0 > $w1 && $h0 > $h1;
 # x, y = ?
 
 # coefficients for the equation
-my $a = -$h1;
-my $b = $w1;
-my $c = ($h0 * $w1 - $w0 * $h1);
-
+my ($a, $b, $c) = (-$h1, $w1, $h0 * $w1 - $w0 * $h1);
 my ($x, $y) = (0, 0);
+my ($x1, $y1) = (-1, -1);
 
 unless ($w0 == $w1 && $h0 == $h1) {
     # minimum even integer roots
     ($x, $y) = (-0.5, -1);
-    $x = ($c - $b * ++$y) / $a until
-        ($y > abs(($c - $a) / $b) || ((int $x == $x && !($x & 1)) && ($y > 0 && !($y & 1))));
+    until ($y > $h0) {
+        $x = abs( ($c - $b * ++$y) / $a );
+        last if ($x1 > 0 && $y1 > 0 && $x1 < $x && $y1 < $y);
+        ($x1, $y1) = ($x, $y) if ((int $x == $x && !($x & 1)) && (($y > 0 && !($y & 1)) || $y == 0));
+        last if (($x1 == 0 && $y1 > 0 && !($y1 & 1)) || ($y1 == 0 && int $x1 == $x1 && !($x1 & 1))); 
+    }
 }
 
-print 'scale: ' . ($w0 - $x) . ':' . ($h0 - $y) . "\n";
-print 'top and bottom fields: ' . ($y / 2) . "\n" if ($y > 0);
-print 'left and right fields: ' . ($x / 2) . "\n" if ($x > 0);
+pod2usage('Sorry, we can\'t calculate correct value') if (int $x1 != $x1 || $x1 < 0 || $y1 < 0);
+
+print 'scale: ' . ($w0 - $x1) . ':' . ($h0 - $y1) . "\n";
+print 'top and bottom fields: ' . ($y1 / 2) . "\n" if ($y1 > 0);
+print 'left and right fields: ' . ($x1 / 2) . "\n" if ($x1 > 0);
 
 ################################################################################
 __END__
@@ -55,6 +59,9 @@ scale calculator - Calculate scale anf fields for ffmpeg
 scale_calculator.pl [options]
 
     Options:
-        -o XXXX:XXXX          original frame size
-        -r XXXX:XXXX          result frame size (optional, defalur 480:272)
+        -o DDDD:DDDD          original frame size
+        -o DDDDxDDDD
+
+        -r DDDD:DDDD          result frame size (optional, defalut 480:272)
+        -r DDDDxDDDD
 
